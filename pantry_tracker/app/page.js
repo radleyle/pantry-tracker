@@ -13,93 +13,120 @@ export default function Home() {
   const [open, setOpen] = useState(false)
   const [itemName, setItemName] = useState('')
   const [expirationDate, setExpirationDate] = useState('')
-  const [quantityThreshold, setQuantityThreshold] = useState(1)
+  const [quantity, setQuantity] = useState(1)
   const [alerts, setAlerts] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [sortType, setSortType] = useState('name')
 
   const updateInventory = async () => {
-    const snapshot = query(collection(firestore, 'inventory'))
-    const docs = await getDocs(snapshot)
-    const inventoryList = []
-    const newAlerts = []
+    try {
+      const snapshot = query(collection(firestore, 'inventory'))
+      const docs = await getDocs(snapshot)
+      const inventoryList = []
+      const newAlerts = []
 
-    docs.forEach((doc) => {
-      const data = doc.data()
-      const item = {
-        name: doc.id,
-        ...data,
-      }
-      inventoryList.push(item)
+      docs.forEach((doc) => {
+        const data = doc.data()
+        const item = {
+          name: doc.id,
+          ...data,
+        }
+        if (item.quantity > 0) {
+          inventoryList.push(item)
+        } else {
+          deleteDoc(doc.ref)  // Automatically delete item with quantity 0
+        }
 
-      // Check expiration date
-      if (data.expirationDate) {
-        const expiration = new Date(data.expirationDate)
-        if (expiration <= new Date()) {
-          newAlerts.push(`${item.name} has expired!`)
-        } else if ((expiration - new Date()) / (1000 * 60 * 60 * 24) <= 3) {
-          newAlerts.push(`${item.name} is expiring soon!`)
+        // Check expiration date
+        if (data.expirationDate) {
+          const expiration = new Date(data.expirationDate)
+          if (expiration <= new Date()) {
+            newAlerts.push(`${item.name} has expired!`)
+          } else if ((expiration - new Date()) / (1000 * 60 * 60 * 24) <= 3) {
+            newAlerts.push(`${item.name} is expiring soon!`)
+          }
+        }
+      })
+
+      setInventory(inventoryList)
+      setAlerts(newAlerts)
+    } catch (error) {
+      console.error("Error updating inventory:", error)
+    }
+  }
+
+  const addItem = async (item, expirationDate, quantityChange) => {
+    try {
+      if (quantityChange < 1) return; // Prevent adding items with quantity less than 1
+
+      const docRef = doc(collection(firestore, 'inventory'), item)
+      const docSnap = await getDoc(docRef)
+
+      if (docSnap.exists()) {
+        const data = docSnap.data()
+        const newQuantity = Math.max((data.quantity || 0) + quantityChange, 0)
+        if (newQuantity === 0) {
+          await deleteDoc(docRef)
+        } else {
+          await setDoc(docRef, { 
+            quantity: newQuantity, 
+            expirationDate: expirationDate || null
+          }, { merge: true })
+        }
+      } else {
+        if (quantityChange >= 1) {
+          await setDoc(docRef, { 
+            quantity: quantityChange, 
+            expirationDate: expirationDate || null
+          })
         }
       }
 
-      // Check quantity threshold
-      if (data.quantity <= data.threshold) {
-        newAlerts.push(`${item.name} is below the quantity threshold!`)
-      }
-    })
-
-    setInventory(inventoryList)
-    setAlerts(newAlerts)
-  }
-
-  const addItem = async (item, expirationDate, quantityThreshold) => {
-    const docRef = doc(collection(firestore, 'inventory'), item)
-    const docSnap = await getDoc(docRef)
-
-    if (docSnap.exists()){
-      const { quantity } = docSnap.data()
-      await setDoc(docRef, { 
-        quantity: quantity + 1, 
-        expirationDate: expirationDate || null, 
-        threshold: quantityThreshold || 1 
-      }, { merge: true })
-    } else {
-      await setDoc(docRef, { 
-        quantity: 1, 
-        expirationDate: expirationDate || null, 
-        threshold: quantityThreshold || 1 
-      })
+      await updateInventory()
+    } catch (error) {
+      console.error("Error adding item:", error)
     }
-
-    await updateInventory()
   }
 
-  const removeItem = async (item) => {
-    const docRef = doc(collection(firestore, 'inventory'), item)
-    const docSnap = await getDoc(docRef)
-
-    if (docSnap.exists()){
-      const { quantity } = docSnap.data()
-      if (quantity === 1) {
-        await deleteDoc(docRef)
-      } else {
-        await setDoc(docRef, { quantity: quantity - 1 }, { merge: true })
-      }
+  const deleteItem = async (itemName) => {
+    try {
+      const docRef = doc(collection(firestore, 'inventory'), itemName)
+      await deleteDoc(docRef)
+      await updateInventory()
+    } catch (error) {
+      console.error("Error deleting item:", error)
     }
-
-    await updateInventory()
   }
 
-  useEffect(() => {
-    updateInventory()
-  }, [])
+  const removeItem = async (itemName) => {
+    try {
+      const docRef = doc(collection(firestore, 'inventory'), itemName)
+      const docSnap = await getDoc(docRef)
+
+      if (docSnap.exists()) {
+        const { quantity } = docSnap.data()
+        if (quantity > 0) {
+          const newQuantity = Math.max(quantity - 1, 0)
+          if (newQuantity === 0) {
+            await deleteDoc(docRef)
+          } else {
+            await setDoc(docRef, { quantity: newQuantity }, { merge: true })
+          }
+        }
+      }
+
+      await updateInventory()
+    } catch (error) {
+      console.error("Error removing item:", error)
+    }
+  }
 
   const handleOpen = () => setOpen(true)
   const handleClose = () => {
     setOpen(false)
     setItemName('')
     setExpirationDate('')
-    setQuantityThreshold(1)
+    setQuantity(1)
   }
 
   const filteredInventory = inventory
@@ -123,19 +150,21 @@ export default function Home() {
       height="100vh" 
       display="flex"
       flexDirection="column"
-      bgcolor="#ffffff"
+      bgcolor="#f5f5f5"
+      p={2}
     >
       {/* Header */}
       <Box 
         display="flex" 
         alignItems="center" 
         p={2} 
-        bgcolor="#000000" 
-        color="#ffffff"
-        borderBottom="1px solid #000000"
+        bgcolor="#ffffff" 
+        color="#333333"
+        borderBottom="1px solid #e0e0e0"
         position="relative"
+        boxShadow="0 1px 3px rgba(0, 0, 0, 0.1)"
       >
-        <Typography variant="h4" ml={2}>
+        <Typography variant="h5" ml={2}>
           Radley's Choice
         </Typography>
       </Box>
@@ -147,10 +176,11 @@ export default function Home() {
         justifyContent="center"
         alignItems="center"
         gap={2}
-        p={2}
       >
         {alerts.map((alert, index) => (
-          <Alert severity="warning" key={index} sx={{ width: '80%', maxWidth: '600px', mb: 2 }}>{alert}</Alert>
+          <Alert severity="warning" key={index} sx={{ width: '100%', maxWidth: '600px', mb: 2 }}>
+            {alert}
+          </Alert>
         ))}
         <Modal open={open} onClose={handleClose}>
           <Box
@@ -158,13 +188,13 @@ export default function Home() {
             top="50%"
             left="50%"
             transform="translate(-50%, -50%)"
-            width={400}
+            width={350}
             bgcolor="#ffffff"
             boxShadow={24}
             p={4}
             borderRadius={2}
           >
-            <Typography variant="h6" component="h2" mb={2} color="#000000">
+            <Typography variant="h6" component="h2" mb={2} color="#333333">
               Add a New Item
             </Typography>
             <Stack spacing={2}>
@@ -175,7 +205,7 @@ export default function Home() {
                 onChange={(e) => setItemName(e.target.value)}
                 fullWidth
                 InputLabelProps={{ shrink: true }}
-                InputProps={{ style: { color: '#000000' } }}
+                InputProps={{ style: { color: '#333333' } }}
               />
               <TextField
                 label="Expiration Date"
@@ -184,25 +214,25 @@ export default function Home() {
                 onChange={(e) => setExpirationDate(e.target.value)}
                 fullWidth
                 InputLabelProps={{ shrink: true }}
-                InputProps={{ style: { color: '#000000' } }}
+                InputProps={{ style: { color: '#333333' } }}
               />
               <TextField
-                label="Quantity Threshold"
+                label="Quantity"
                 type="number"
-                value={quantityThreshold}
-                onChange={(e) => setQuantityThreshold(Number(e.target.value))}
+                value={quantity}
+                onChange={(e) => setQuantity(Math.max(Number(e.target.value), 1))}
                 fullWidth
                 InputLabelProps={{ shrink: true }}
-                InputProps={{ style: { color: '#000000' } }}
+                InputProps={{ style: { color: '#333333' } }}
               />
               <Button 
                 variant="contained" 
                 onClick={async () => {
-                  await addItem(itemName, expirationDate, quantityThreshold)
+                  await addItem(itemName, expirationDate, quantity)
                   handleClose()
                 }}
                 fullWidth
-                sx={{ backgroundColor: '#000000', color: '#ffffff' }}
+                sx={{ backgroundColor: '#333333', color: '#ffffff' }}
               >
                 Add
               </Button>
@@ -213,8 +243,8 @@ export default function Home() {
           display="flex" 
           justifyContent="space-between" 
           alignItems="center" 
-          width="80%" 
-          maxWidth="800px" 
+          width="100%" 
+          maxWidth="600px" 
           mb={2}
         >
           <TextField
@@ -230,14 +260,14 @@ export default function Home() {
                   </IconButton>
                 </InputAdornment>
               ),
-              style: { color: '#000000' }
+              style: { color: '#333333' }
             }}
-            sx={{ width: '60%', bgcolor: '#ffffff' }}
+            sx={{ width: '70%', bgcolor: '#ffffff' }}
           />
           <Select
             value={sortType}
             onChange={(e) => setSortType(e.target.value)}
-            sx={{ width: '30%', bgcolor: '#ffffff', color: '#000000' }}
+            sx={{ width: '25%', bgcolor: '#ffffff', color: '#333333' }}
           >
             <MenuItem value="name">Sort by Name</MenuItem>
             <MenuItem value="quantity">Sort by Quantity</MenuItem>
@@ -246,44 +276,63 @@ export default function Home() {
         <Button 
           variant="contained"
           onClick={handleOpen}
-          sx={{ mb: 2, backgroundColor: '#000000', color: '#ffffff' }}
+          sx={{ mb: 2, backgroundColor: '#333333', color: '#ffffff' }}
         >
           Add New Item
         </Button>
-        <Paper elevation={3} sx={{ p: 2, width: '80%', maxWidth: '800px', backgroundColor: '#f8f8f8' }}>
+        <Paper elevation={3} sx={{ p: 2, width: '100%', maxWidth: '600px', backgroundColor: '#ffffff' }}>
           <Box 
             height="60px" 
-            bgcolor="#000000"
+            bgcolor="#333333"
             display="flex"
             alignItems="center"
             justifyContent="center"
-            borderRadius="4px 4px 0 0"
+            borderRadius="8px 8px 0 0"
+            mb={2}
           >
-            <Typography variant="h4" color="#ffffff">
+            <Typography variant="h6" color="#ffffff">
               Inventory Items
             </Typography>
           </Box>
-          <Stack width="100%" p={2}>
+          <Stack spacing={1}>
             {filteredInventory.map(item => (
               <Box
                 key={item.name}
                 display="flex"
-                justifyContent="space-between"
                 alignItems="center"
-                mb={2}
-                p={2}
-                border="1px solid #000000"
-                borderRadius="4px"
-                bgcolor="#ffffff"
+                justifyContent="space-between"
+                p={1}
+                border="1px solid #e0e0e0"
+                borderRadius="8px"
+                bgcolor="#fafafa"
+                gap={2}
               >
-                <Typography variant="h6" color="#000000">{item.name}</Typography>
-                <Typography variant="body1" color="#000000">Quantity: {item.quantity}</Typography>
+                <Typography variant="body1" color="#333333" flex="1">
+                  {item.name}
+                </Typography>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Button 
+                    variant="outlined" 
+                    onClick={() => item.quantity > 0 && removeItem(item.name)}
+                    sx={{ backgroundColor: '#eeeeee', color: '#333333', borderColor: '#cccccc' }}
+                  >
+                    -
+                  </Button>
+                  <Typography variant="body1" color="#333333">{item.quantity}</Typography>
+                  <Button 
+                    variant="outlined" 
+                    onClick={() => addItem(item.name, item.expirationDate, 1)}
+                    sx={{ backgroundColor: '#eeeeee', color: '#333333', borderColor: '#cccccc' }}
+                  >
+                    +
+                  </Button>
+                </Box>
                 <Button 
-                  variant="contained"
-                  onClick={() => removeItem(item.name)}
-                  sx={{ backgroundColor: '#000000', color: '#ffffff' }}
+                  variant="outlined" 
+                  onClick={() => deleteItem(item.name)}
+                  sx={{ backgroundColor: '#ff0000', color: '#ffffff', borderColor: '#ff0000' }}
                 >
-                  Remove
+                  Delete
                 </Button>
               </Box>
             ))}

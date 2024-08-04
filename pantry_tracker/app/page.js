@@ -1,16 +1,21 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { firestore } from '@/firebase'
-import { Box, Button, Modal, Stack, TextField, Typography, Paper, Alert } from '@mui/material'
+import { Box, Button, Modal, Stack, TextField, Typography, Paper, Alert, Select, MenuItem, InputAdornment, IconButton } from '@mui/material'
 import { collection, deleteDoc, getDocs, doc, query, getDoc, setDoc } from "firebase/firestore"
+import SearchIcon from '@mui/icons-material/Search'
+import WelcomePage from './WelcomePage'
 
 export default function Home() {
+  const [showWelcome, setShowWelcome] = useState(true)
   const [inventory, setInventory] = useState([])
   const [open, setOpen] = useState(false)
   const [itemName, setItemName] = useState('')
   const [expirationDate, setExpirationDate] = useState('')
   const [quantityThreshold, setQuantityThreshold] = useState(1)
   const [alerts, setAlerts] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortType, setSortType] = useState('name')
 
   const updateInventory = async () => {
     const snapshot = query(collection(firestore, 'inventory'))
@@ -52,9 +57,17 @@ export default function Home() {
 
     if (docSnap.exists()){
       const { quantity } = docSnap.data()
-      await setDoc(docRef, { quantity: quantity + 1, expirationDate, threshold: quantityThreshold })
+      await setDoc(docRef, { 
+        quantity: quantity + 1, 
+        expirationDate: expirationDate || null, 
+        threshold: quantityThreshold || 1 
+      }, { merge: true })
     } else {
-      await setDoc(docRef, { quantity: 1, expirationDate, threshold: quantityThreshold })
+      await setDoc(docRef, { 
+        quantity: 1, 
+        expirationDate: expirationDate || null, 
+        threshold: quantityThreshold || 1 
+      })
     }
 
     await updateInventory()
@@ -69,7 +82,7 @@ export default function Home() {
       if (quantity === 1) {
         await deleteDoc(docRef)
       } else {
-        await setDoc(docRef, { quantity: quantity - 1 })
+        await setDoc(docRef, { quantity: quantity - 1 }, { merge: true })
       }
     }
 
@@ -88,6 +101,21 @@ export default function Home() {
     setQuantityThreshold(1)
   }
 
+  const filteredInventory = inventory
+    .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      if (sortType === 'name') {
+        return a.name.localeCompare(b.name)
+      } else if (sortType === 'quantity') {
+        return b.quantity - a.quantity
+      }
+      return 0
+    })
+
+  if (showWelcome) {
+    return <WelcomePage onContinue={() => setShowWelcome(false)} />
+  }
+
   return (
     <Box 
       width="100vw" 
@@ -97,10 +125,10 @@ export default function Home() {
       justifyContent="center"
       alignItems="center"
       gap={2}
-      bgcolor="#f7f7f7"
+      bgcolor="#ffffff"
     >
       {alerts.map((alert, index) => (
-        <Alert severity="warning" key={index}>{alert}</Alert>
+        <Alert severity="warning" key={index} sx={{ width: '80%', maxWidth: '600px', mb: 2 }}>{alert}</Alert>
       ))}
       <Modal open={open} onClose={handleClose}>
         <Box
@@ -109,12 +137,12 @@ export default function Home() {
           left="50%"
           transform="translate(-50%, -50%)"
           width={400}
-          bgcolor="background.paper"
+          bgcolor="#ffffff"
           boxShadow={24}
           p={4}
           borderRadius={2}
         >
-          <Typography variant="h6" component="h2" mb={2}>
+          <Typography variant="h6" component="h2" mb={2} color="#000000">
             Add a New Item
           </Typography>
           <Stack spacing={2}>
@@ -124,6 +152,8 @@ export default function Home() {
               value={itemName}
               onChange={(e) => setItemName(e.target.value)}
               fullWidth
+              InputLabelProps={{ shrink: true }}
+              InputProps={{ style: { color: '#000000' } }}
             />
             <TextField
               label="Expiration Date"
@@ -132,6 +162,7 @@ export default function Home() {
               onChange={(e) => setExpirationDate(e.target.value)}
               fullWidth
               InputLabelProps={{ shrink: true }}
+              InputProps={{ style: { color: '#000000' } }}
             />
             <TextField
               label="Quantity Threshold"
@@ -139,6 +170,8 @@ export default function Home() {
               value={quantityThreshold}
               onChange={(e) => setQuantityThreshold(Number(e.target.value))}
               fullWidth
+              InputLabelProps={{ shrink: true }}
+              InputProps={{ style: { color: '#000000' } }}
             />
             <Button 
               variant="contained" 
@@ -147,74 +180,89 @@ export default function Home() {
                 handleClose()
               }}
               fullWidth
+              sx={{ backgroundColor: '#000000', color: '#ffffff' }}
             >
               Add
             </Button>
           </Stack>
         </Box>
       </Modal>
+      <Box 
+        display="flex" 
+        justifyContent="space-between" 
+        alignItems="center" 
+        width="80%" 
+        maxWidth="800px" 
+        mb={2}
+      >
+        <TextField
+          variant="outlined"
+          placeholder="Search item"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <IconButton>
+                  <SearchIcon />
+                </IconButton>
+              </InputAdornment>
+            ),
+            style: { color: '#000000' }
+          }}
+          sx={{ width: '60%', bgcolor: '#ffffff' }}
+        />
+        <Select
+          value={sortType}
+          onChange={(e) => setSortType(e.target.value)}
+          sx={{ width: '30%', bgcolor: '#ffffff', color: '#000000' }}
+        >
+          <MenuItem value="name">Sort by Name</MenuItem>
+          <MenuItem value="quantity">Sort by Quantity</MenuItem>
+        </Select>
+      </Box>
       <Button 
         variant="contained"
         onClick={handleOpen}
-        sx={{ mb: 2 }}
+        sx={{ mb: 2, backgroundColor: '#000000', color: '#ffffff' }}
       >
         Add New Item
       </Button>
-      <Paper elevation={3} sx={{ p: 2, width: '80%', maxWidth: '800px' }}>
+      <Paper elevation={3} sx={{ p: 2, width: '80%', maxWidth: '800px', backgroundColor: '#f8f8f8' }}>
         <Box 
           height="60px" 
-          bgcolor="#ADD8E6"
+          bgcolor="#000000"
           display="flex"
           alignItems="center"
           justifyContent="center"
           borderRadius="4px 4px 0 0"
         >
-          <Typography variant="h4" color="#333">
+          <Typography variant="h4" color="#ffffff">
             Inventory Items
           </Typography>
         </Box>
-        <Stack width="100%" maxHeight="400px" spacing={2} overflow="auto" mt={2} p={2}>
-          {inventory.map(({ name, quantity, expirationDate, threshold }) => (
-            <Box 
-              key={name}
+        <Stack width="100%" p={2}>
+          {filteredInventory.map(item => (
+            <Box
+              key={item.name}
               display="flex"
-              alignItems="center"
               justifyContent="space-between"
-              bgcolor="#f0f0f0"
-              padding={2}
-              borderRadius={2}
-              boxShadow={1}
+              alignItems="center"
+              mb={2}
+              p={2}
+              border="1px solid #000000"
+              borderRadius="4px"
+              bgcolor="#ffffff"
             >
-              <Box>
-                <Typography variant="h6" color="#333">
-                  {name.charAt(0).toUpperCase() + name.slice(1)}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  {expirationDate ? `Expires on: ${new Date(expirationDate).toLocaleDateString()}` : 'No expiration date'}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Threshold: {threshold}
-                </Typography>
-              </Box>
-              <Typography variant="h6" color="#333">
-                {quantity}
-              </Typography>
-              <Stack direction="row" spacing={2}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={() => addItem(name, expirationDate, threshold)}
-                >
-                  Add
-                </Button>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  onClick={() => removeItem(name)}
-                >
-                  Remove
-                </Button>
-              </Stack>
+              <Typography variant="h6" color="#000000">{item.name}</Typography>
+              <Typography variant="body1" color="#000000">Quantity: {item.quantity}</Typography>
+              <Button 
+                variant="contained"
+                onClick={() => removeItem(item.name)}
+                sx={{ backgroundColor: '#000000', color: '#ffffff' }}
+              >
+                Remove
+              </Button>
             </Box>
           ))}
         </Stack>

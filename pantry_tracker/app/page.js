@@ -1,4 +1,5 @@
-'use client'
+"use client"
+
 import { useState, useEffect } from 'react'
 import { firestore } from '@/firebase'
 import { Box, Button, Modal, Stack, TextField, Typography, Paper, Alert, Select, MenuItem, InputAdornment, IconButton } from '@mui/material'
@@ -122,151 +123,173 @@ export default function Home() {
       height="100vh" 
       display="flex"
       flexDirection="column"
-      justifyContent="center"
-      alignItems="center"
-      gap={2}
       bgcolor="#ffffff"
     >
-      {alerts.map((alert, index) => (
-        <Alert severity="warning" key={index} sx={{ width: '80%', maxWidth: '600px', mb: 2 }}>{alert}</Alert>
-      ))}
-      <Modal open={open} onClose={handleClose}>
-        <Box
-          position="absolute"
-          top="50%"
-          left="50%"
-          transform="translate(-50%, -50%)"
-          width={400}
-          bgcolor="#ffffff"
-          boxShadow={24}
-          p={4}
-          borderRadius={2}
-        >
-          <Typography variant="h6" component="h2" mb={2} color="#000000">
-            Add a New Item
-          </Typography>
-          <Stack spacing={2}>
-            <TextField
-              label="Item Name"
-              variant="outlined"
-              value={itemName}
-              onChange={(e) => setItemName(e.target.value)}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              InputProps={{ style: { color: '#000000' } }}
-            />
-            <TextField
-              label="Expiration Date"
-              type="date"
-              value={expirationDate}
-              onChange={(e) => setExpirationDate(e.target.value)}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              InputProps={{ style: { color: '#000000' } }}
-            />
-            <TextField
-              label="Quantity Threshold"
-              type="number"
-              value={quantityThreshold}
-              onChange={(e) => setQuantityThreshold(Number(e.target.value))}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              InputProps={{ style: { color: '#000000' } }}
-            />
-            <Button 
-              variant="contained" 
-              onClick={async () => {
-                await addItem(itemName, expirationDate, quantityThreshold)
-                handleClose()
-              }}
-              fullWidth
-              sx={{ backgroundColor: '#000000', color: '#ffffff' }}
-            >
-              Add
-            </Button>
-          </Stack>
-        </Box>
-      </Modal>
+      {/* Header */}
       <Box 
         display="flex" 
-        justifyContent="space-between" 
         alignItems="center" 
-        width="80%" 
-        maxWidth="800px" 
-        mb={2}
+        p={2} 
+        bgcolor="#000000" 
+        color="#ffffff"
+        borderBottom="1px solid #000000"
+        position="relative"
       >
-        <TextField
-          variant="outlined"
-          placeholder="Search item"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <IconButton>
-                  <SearchIcon />
-                </IconButton>
-              </InputAdornment>
-            ),
-            style: { color: '#000000' }
-          }}
-          sx={{ width: '60%', bgcolor: '#ffffff' }}
-        />
-        <Select
-          value={sortType}
-          onChange={(e) => setSortType(e.target.value)}
-          sx={{ width: '30%', bgcolor: '#ffffff', color: '#000000' }}
-        >
-          <MenuItem value="name">Sort by Name</MenuItem>
-          <MenuItem value="quantity">Sort by Quantity</MenuItem>
-        </Select>
+        <Typography variant="h4" ml={2}>
+          Radley's Choice
+        </Typography>
       </Box>
-      <Button 
-        variant="contained"
-        onClick={handleOpen}
-        sx={{ mb: 2, backgroundColor: '#000000', color: '#ffffff' }}
+      
+      <Box 
+        flex="1" 
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        gap={2}
+        p={2}
       >
-        Add New Item
-      </Button>
-      <Paper elevation={3} sx={{ p: 2, width: '80%', maxWidth: '800px', backgroundColor: '#f8f8f8' }}>
-        <Box 
-          height="60px" 
-          bgcolor="#000000"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          borderRadius="4px 4px 0 0"
-        >
-          <Typography variant="h4" color="#ffffff">
-            Inventory Items
-          </Typography>
-        </Box>
-        <Stack width="100%" p={2}>
-          {filteredInventory.map(item => (
-            <Box
-              key={item.name}
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-              mb={2}
-              p={2}
-              border="1px solid #000000"
-              borderRadius="4px"
-              bgcolor="#ffffff"
-            >
-              <Typography variant="h6" color="#000000">{item.name}</Typography>
-              <Typography variant="body1" color="#000000">Quantity: {item.quantity}</Typography>
+        {alerts.map((alert, index) => (
+          <Alert severity="warning" key={index} sx={{ width: '80%', maxWidth: '600px', mb: 2 }}>{alert}</Alert>
+        ))}
+        <Modal open={open} onClose={handleClose}>
+          <Box
+            position="absolute"
+            top="50%"
+            left="50%"
+            transform="translate(-50%, -50%)"
+            width={400}
+            bgcolor="#ffffff"
+            boxShadow={24}
+            p={4}
+            borderRadius={2}
+          >
+            <Typography variant="h6" component="h2" mb={2} color="#000000">
+              Add a New Item
+            </Typography>
+            <Stack spacing={2}>
+              <TextField
+                label="Item Name"
+                variant="outlined"
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ style: { color: '#000000' } }}
+              />
+              <TextField
+                label="Expiration Date"
+                type="date"
+                value={expirationDate}
+                onChange={(e) => setExpirationDate(e.target.value)}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ style: { color: '#000000' } }}
+              />
+              <TextField
+                label="Quantity Threshold"
+                type="number"
+                value={quantityThreshold}
+                onChange={(e) => setQuantityThreshold(Number(e.target.value))}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ style: { color: '#000000' } }}
+              />
               <Button 
-                variant="contained"
-                onClick={() => removeItem(item.name)}
+                variant="contained" 
+                onClick={async () => {
+                  await addItem(itemName, expirationDate, quantityThreshold)
+                  handleClose()
+                }}
+                fullWidth
                 sx={{ backgroundColor: '#000000', color: '#ffffff' }}
               >
-                Remove
+                Add
               </Button>
-            </Box>
-          ))}
-        </Stack>
-      </Paper>
+            </Stack>
+          </Box>
+        </Modal>
+        <Box 
+          display="flex" 
+          justifyContent="space-between" 
+          alignItems="center" 
+          width="80%" 
+          maxWidth="800px" 
+          mb={2}
+        >
+          <TextField
+            variant="outlined"
+            placeholder="Search item"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <IconButton>
+                    <SearchIcon />
+                  </IconButton>
+                </InputAdornment>
+              ),
+              style: { color: '#000000' }
+            }}
+            sx={{ width: '60%', bgcolor: '#ffffff' }}
+          />
+          <Select
+            value={sortType}
+            onChange={(e) => setSortType(e.target.value)}
+            sx={{ width: '30%', bgcolor: '#ffffff', color: '#000000' }}
+          >
+            <MenuItem value="name">Sort by Name</MenuItem>
+            <MenuItem value="quantity">Sort by Quantity</MenuItem>
+          </Select>
+        </Box>
+        <Button 
+          variant="contained"
+          onClick={handleOpen}
+          sx={{ mb: 2, backgroundColor: '#000000', color: '#ffffff' }}
+        >
+          Add New Item
+        </Button>
+        <Paper elevation={3} sx={{ p: 2, width: '80%', maxWidth: '800px', backgroundColor: '#f8f8f8' }}>
+          <Box 
+            height="60px" 
+            bgcolor="#000000"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            borderRadius="4px 4px 0 0"
+          >
+            <Typography variant="h4" color="#ffffff">
+              Inventory Items
+            </Typography>
+          </Box>
+          <Stack width="100%" p={2}>
+            {filteredInventory.map(item => (
+              <Box
+                key={item.name}
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={2}
+                p={2}
+                border="1px solid #000000"
+                borderRadius="4px"
+                bgcolor="#ffffff"
+              >
+                <Typography variant="h6" color="#000000">{item.name}</Typography>
+                <Typography variant="body1" color="#000000">Quantity: {item.quantity}</Typography>
+                <Button 
+                  variant="contained"
+                  onClick={() => removeItem(item.name)}
+                  sx={{ backgroundColor: '#000000', color: '#ffffff' }}
+                >
+                  Remove
+                </Button>
+              </Box>
+            ))}
+          </Stack>
+        </Paper>
+      </Box>
     </Box>
   )
 }
